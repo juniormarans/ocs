@@ -1,0 +1,52 @@
+version: '3'
+
+services:
+  server:
+    image: ocsinventory/ocsinventory-docker-image
+    container_name: ocs-server
+    privileged: true
+    environment:
+      OCS_DB_SERVER: database
+      OCS_DB_USER: ocs
+      OCS_DB_PASS: ocs
+      OCS_DB_NAME: ocsweb
+    volumes:
+      - ocsdata:/usr/share/ocsinventory-reports/
+      - ocsperllib:/etc/ocsinventory-reports/
+      - ocsvartmp:/var/lib/ocsinventory-reports/
+      - ./apache/000-default.conf:/etc/apache2/sites-enabled/000-default.conf
+    depends_on:
+      - database
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ocs.rule=Host(`ocs.localhost`)"
+      - "traefik.http.services.ocs.loadbalancer.server.port=80"
+
+  database:
+    image: mariadb:10.5
+    container_name: ocs-db
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_USER: ocs
+      MARIADB_PASSWORD: ocs
+      MARIADB_DATABASE: ocsweb
+    volumes:
+      - dbdata:/var/lib/mysql
+
+  traefik:
+    image: traefik:v2.9
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+volumes:
+  ocsdata:
+  ocsperllib:
+  ocsvartmp:
+  dbdata:
